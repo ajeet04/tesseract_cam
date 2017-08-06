@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <EditText
+        android:id="@+id/hieght"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="25dp"
+        android:layout_marginRight="25dp"
+        android:layout_marginTop="21dp"
+        android:ems="10"
+        android:inputType="number"
+
+        android:layout_below="@+id/captured_photo"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
+
+    <EditText
+        android:id="@+id/width"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/hieght"
+          android:inputType="number"
+        android:layout_alignStart="@+id/hieght"
+        android:layout_below="@+id/hieght"
+        android:ems="10" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="hieght"
+        android:textSize="25dp"
+
+        android:layout_alignBaseline="@+id/hieght"
+        android:layout_alignBottom="@+id/hieght"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:textSize="25dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="width"
+        android:layout_alignBottom="@+id/width"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
+    <Button android:layout_height="wrap_content"
+        android:layout_width="100dp"
+        android:id="@+id/declineButton"
+        android:text=" ok "
+        android:layout_below="@+id/width"
+        android:layout_alignRight="@+id/width"
+        android:layout_alignEnd="@+id/width"
+        android:layout_marginTop="86dp" />
+
+</RelativeLayout>

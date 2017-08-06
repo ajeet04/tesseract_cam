@@ -1,0 +1,240 @@
+
+plugins {
+	id "nu.studer.plugindev" version "1.0.4"
+	id "com.gradle.plugin-publish" version "0.9.4"
+}
+
+apply plugin: "groovy"
+apply plugin: "java-gradle-plugin"
+apply plugin: "nu.studer.plugindev"
+apply plugin: "jacoco"
+apply plugin: "maven"
+
+repositories {
+	mavenCentral()
+	mavenLocal()
+}
+
+ext {
+	gradleVersions = '3.0,3.1,3.2,3.2.1,3.3'
+	androidGradleBuildVersion = '2.2.0-beta1'
+	androidCompileSdkVersion = 'android-24'
+	androidBuildToolsVersion = '24.0.0'
+}
+
+configurations {
+	jacocoRuntime
+}
+
+sourceSets {
+	test {
+		groovy {
+			srcDirs = ['src/test/groovy', 'src/test/core/src/testFixtures/groovy', 'src/test/internal-testing/src/main/groovy' ]
+		}
+	}
+}
+
+// Write the plugin's classpath to a file to share with the tests
+task createClasspathManifest {
+    def outputDir = file("$buildDir/$name")
+
+    inputs.files sourceSets.main.runtimeClasspath
+    outputs.dir outputDir
+
+    doLast {
+        outputDir.mkdirs()
+        file("$outputDir/plugin-classpath.txt").text = sourceSets.main.runtimeClasspath.join("\n")
+    }
+}
+
+dependencies {
+	jacocoRuntime "org.jacoco:org.jacoco.agent:${jacoco.toolVersion}:runtime"
+	
+	compile gradleApi()
+	
+	// from gradle/gradle/dependencies.gradle
+	compileOnly dependencies.module("org.apache.maven:maven-core:3.0.4") {
+		dependency "org.apache.maven:maven-settings:3.0.4@jar"
+		dependency "org.apache.maven:maven-settings-builder:3.0.4@jar"
+
+		//plexus:
+		dependency "org.codehaus.plexus:plexus-utils:2.0.6@jar"
+		dependency "org.codehaus.plexus:plexus-interpolation:1.14@jar"
+		dependency "org.codehaus.plexus:plexus-component-annotations:1.5.5@jar"
+		dependency "org.codehaus.plexus:plexus-container-default:1.5.5@jar"
+		dependency "org.codehaus.plexus:plexus-classworlds:2.4@jar"
+
+		//sonatype plexus
+		dependency "org.sonatype.plexus:plexus-cipher:1.7@jar"
+		dependency "org.sonatype.plexus:plexus-sec-dispatcher:1.3@jar"
+
+		//core:
+		dependency "org.apache.maven:maven-core:3.0.4@jar"
+		dependency "org.apache.maven:maven-compat:3.0.4@jar"
+		dependency "org.apache.maven:maven-model-builder:3.0.4@jar"
+		dependency "org.apache.maven:maven-model:3.0.4@jar"
+
+		//somewhat core:
+		dependency "org.apache.maven:maven-artifact:3.0.4@jar"
+		dependency "org.apache.maven:maven-repository-metadata:3.0.4@jar"
+		dependency "org.apache.maven:maven-plugin-api:3.0.4@jar"
+		dependency "org.apache.maven:maven-aether-provider:3.0.4@jar"
+
+		dependency 'org.apache.maven.wagon:wagon-file:2.4@jar'
+		dependency 'org.apache.maven.wagon:wagon-http:2.4@jar'
+		dependency 'org.apache.maven.wagon:wagon-provider-api:2.4@jar'
+		dependency 'org.apache.maven.wagon:wagon-http-shared4:2.4@jar'
+
+		//eather:
+		dependency "org.sonatype.aether:aether-api:1.13.1@jar"
+		dependency "org.sonatype.aether:aether-impl:1.13.1@jar"
+		dependency "org.sonatype.aether:aether-spi:1.13.1@jar"
+		dependency "org.sonatype.aether:aether-util:1.13.1@jar"
+		dependency 'org.sonatype.aether:aether-connector-wagon:1.13.1@jar'
+	}
+	
+	testRuntime files(createClasspathManifest)
+
+	testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
+        exclude module: 'groovy-all'
+    }
+
+	testCompile	'junit:junit:4.12',
+				'org.hamcrest:hamcrest-all:1.3',
+				'org.codehaus.groovy:groovy-all:2.4.7'
+				
+	// from gradle/subprojects/core/core.gradle, gradle/subprojects/internal-testing/internal-testing.gradle and gradle/gradle/dependencies.gradle
+	testCompile	'commons-io:commons-io:2.2',
+				'commons-lang:commons-lang:2.6@jar',
+				'org.objenesis:objenesis:1.2@jar',
+				'cglib:cglib-nodep:2.2.2',
+				'org.jmock:jmock:2.5.1',
+				dependencies.create('org.jmock:jmock-junit4:2.5.1') { exclude group: 'junit', module: 'junit-dep' }, //junit-dep pulls old definitions of core junit types.
+				'org.jmock:jmock-legacy:2.5.1',
+				'com.google.guava:guava-jdk5:17.0@jar',
+				'org.jsoup:jsoup:1.6.3',
+				'com.google.code.findbugs:jsr305:1.3.9@jar',
+				'org.ow2.asm:asm-all:5.1'
+	testCompile dependencies.module('org.apache.ivy:ivy:2.2.0'){
+		dependency "com.jcraft:jsch:0.1.53"
+	}
+	testCompile dependencies.module('org.apache.ant:ant:1.9.6') {
+		dependency 'org.apache.ant:ant-launcher:1.9.6@jar'
+	}
+}
+
+sourceCompatibility = 1.6
+targetCompatibility = 1.6
+
+test {
+	systemProperty 'gradle.versions', gradleVersions
+	systemProperty 'android.gradle.build.version', androidGradleBuildVersion
+	systemProperty 'android.compile.sdk.version', androidCompileSdkVersion
+	systemProperty 'android.build.tools.version', androidBuildToolsVersion
+	systemProperty 'jacoco.runtime', configurations.jacocoRuntime.asPath.replace('\\', '/')
+	systemProperty 'buildDir', "$buildDir".replace('\\', '/')
+	
+	doLast {
+		def coverageFiles = fileTree("${buildDir}/jacoco").include('*.exec')
+		coverageFiles.each { file ->
+			jacocoTestReport {
+				executionData file
+			}
+		} 
+	}
+}
+
+plugindev {
+	pluginId = 'com.github.dcendents.android-maven'
+	pluginImplementationClass 'org.gradle.api.plugins.AndroidMavenPlugin'
+	pluginName 'Gradle Android Maven Plugin'
+	pluginDescription 'Modification to the standard Maven plugin to be compatible with android-library projects (aar).'
+	pluginLicenses 'Apache-2.0'
+	pluginTags 'gradle', 'plugin', 'android', 'maven'
+	authorId 'dcendents'
+	authorName 'Daniel Beland'
+	authorEmail 'dcendents@gmail.com'
+	projectUrl 'https://github.com/dcendents/android-maven-gradle-plugin'
+	projectInceptionYear '2013'
+	done() // do not omit this
+}
+
+ext {
+	// Set values in ~/.gradle/gradle.properties, set default values otherwise for build to work
+	bintrayUsername = project.properties['bintrayUsername'] != null ? project.properties['bintrayUsername'] : ""
+	bintrayApiKey = project.properties['bintrayApiKey'] != null ? project.properties['bintrayApiKey'] : ""
+	bintrayPassphrase = project.properties['bintrayPassphrase'] != null ? project.properties['bintrayPassphrase'] : ""
+}
+
+bintray {
+	user = "${bintrayUsername}"
+	key = "${bintrayApiKey}"
+
+	dryRun = false
+	publish = true
+	pkg {
+		repo = 'gradle-plugins'
+		name = 'com.github.dcendents:android-maven-gradle-plugin'
+		version {
+			gpg {
+				sign = true
+				passphrase = "${bintrayPassphrase}"
+			}
+		}
+	}
+}
+
+pluginBundle {
+	website = 'https://github.com/dcendents/android-maven-gradle-plugin'
+	vcsUrl = 'https://github.com/dcendents/android-maven-gradle-plugin'
+
+	description = 'Modification to the standard Maven plugin to be compatible with android-library projects (aar).'
+
+	plugins {
+		androidMavenPlugin {
+			id = 'com.github.dcendents.android-maven'
+			displayName = 'Gradle Android Maven plugin'
+			tags = ['maven', 'android']
+			version = version
+		}
+	}
+
+	mavenCoordinates {
+		groupId = group
+		artifactId = theName
+		version = version
+	}
+}
+
+jacoco {
+	toolVersion = "0.7.7.201606060606"
+}
+
+jacocoTestReport {
+	reports {
+		xml.enabled true
+		html.enabled true
+		html.destination "${buildDir}/jacocoHtml"
+	}
+}
+
+jar.dependsOn test
+jacocoTestReport.dependsOn test
+check.dependsOn jacocoTestReport
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.3'
+    distributionUrl = "https://services.gradle.org/distributions/gradle-${gradleVersion}-all.zip"
+}
+
+if (System.env.TRAVIS == 'true' || System.env.CIRCLECI == 'true') {
+	allprojects {
+		tasks.withType(GroovyCompile) {
+			groovyOptions.fork = false
+		}
+		tasks.withType(Test) {
+			minHeapSize = '128m'
+			maxHeapSize = '256m'
+		}
+	}
+}
